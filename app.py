@@ -1,4 +1,3 @@
-
 from flask import Flask, request, jsonify
 import openai
 import os
@@ -26,9 +25,7 @@ def ask():
         messages = [
             {
                 "role": "system",
-                "content": f"You are a helpful assistant. Use the following documentation to answer:
-
-{documentation}"
+                "content": f"You are a helpful assistant. Use the following documentation to answer:\\n\\n{documentation}"
             },
             {
                 "role": "user",
@@ -44,3 +41,6 @@ def ask():
         return jsonify({"reply": response.choices[0].message["content"]})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
+if __name__ == "__main__":
+    app.run(host="0.0.0.0", port=3000)
