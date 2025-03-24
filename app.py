@@ -3,12 +3,11 @@ import openai
 import os
 from flask_cors import CORS
 
-# ✅ Create the app first
 app = Flask(__name__)
 CORS(app)
 
-# ✅ Set the API key from environment variables
-openai.api_key = os.getenv("OPENAI_API_KEY")
+# ✅ Use the correct API client and version
+client = openai.OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
 @app.route("/")
 def home():
@@ -35,15 +34,15 @@ def ask():
             }
         ]
 
-        response = openai.ChatCompletion.create(
+        response = client.chat.completions.create(
             model="gpt-3.5-turbo",
             messages=messages
         )
 
-        return jsonify({"reply": response.choices[0].message["content"]})
+        return jsonify({"reply": response.choices[0].message.content})
     except Exception as e:
         print("🔥 ERROR:", str(e))
         return jsonify({"error": str(e)}), 500
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=3000)
+    app.run(host="0.0.0.0", port=30
