@@ -1,3 +1,17 @@
+from flask import Flask, request, jsonify
+import openai
+import os
+from flask_cors import CORS
+
+app = Flask(__name__)
+CORS(app)
+
+client = openai.OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+
+@app.route("/")
+def home():
+    return "Easy2Swim Chatbot API is running!"
+
 @app.route("/ask", methods=["POST"])
 def ask():
     data = request.get_json()
@@ -30,3 +44,6 @@ def ask():
     except Exception as e:
         print("🔥 ERROR:", str(e))
         return jsonify({"error": str(e)}), 500
+
+if __name__ == "__main__":
+    app.run(host="0.0.0.0", port=3000)
