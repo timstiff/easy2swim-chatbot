@@ -13,8 +13,8 @@ import sys
 # Create the Flask app
 app = Flask(__name__)
 
-# Enable CORS for frontend at https://easy2swim.co.za
-CORS(app, origins=["https://easy2swim.co.za"])
+# Enable CORS for all routes and only allow requests from https://easy2swim.co.za
+CORS(app, origins=["https://easy2swim.co.za"], supports_credentials=True)
 
 # Set up logging to capture detailed information
 logging.basicConfig(level=logging.DEBUG)  # Set to DEBUG to capture detailed logs
@@ -33,6 +33,12 @@ app.logger.info("Flask app initialized and ready to accept requests.")
 def home():
     app.logger.info("Home route called.")
     return "Easy2Swim Chatbot API is running!"
+
+# Handle OPTIONS request (CORS Preflight)
+@app.route("/api/ask", methods=["OPTIONS"])
+def handle_options():
+    app.logger.info("Handling OPTIONS request for /api/ask")
+    return "", 200  # Respond with 200 OK to preflight requests
 
 @app.route("/ask", methods=["POST"])
 def ask():
