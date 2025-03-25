@@ -6,9 +6,13 @@ import requests
 from bs4 import BeautifulSoup
 from datetime import datetime, timedelta
 import re
+import logging
 
 app = Flask(__name__)
 CORS(app)
+
+# Set up logging
+logging.basicConfig(level=logging.INFO)
 
 @app.route("/")
 def home():
@@ -16,33 +20,52 @@ def home():
 
 @app.route("/ask", methods=["POST"])
 def ask():
-    data = request.get_json()
-    user_message = data.get("message")
-    documentation = data.get("documentation")
-    history = data.get("history", [])
+    try:
+        data = request.get_json()
+        if not data:
+            app.logger.error("No JSON data received.")
+            return jsonify({"error": "No data received"}), 400
+        
+        user_message = data.get("message")
+        documentation = data.get("documentation")
+        history = data.get("history", [])
 
-    if not user_message or not documentation:
-        return jsonify({"error": "Missing message or documentation"}), 400
+        if not user_message or not documentation:
+            return jsonify({"error": "Missing message or documentation"}), 400
 
-    messages = [
-        {
-            "role": "system",
-            "content": f"You are a helpful assistant for Easy2Swim. Use the following documentation to answer questions:\n\n{documentation}"
-        }
-    ] + history + [
-        {
-            "role": "user",
-            "content": user_message
-        }
-    ]
+        app.logger.info(f"Received user message: {user_message[:50]}...")  # Only log the first 50 characters
+        app.logger.info(f"Received documentation: {documentation[:50]}...")  # Only log first 50 chars
 
-    client = openai.OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
-    response = client.chat.completions.create(
-        model="gpt-3.5-turbo",
-        messages=messages
-    )
+        # Preparing messages for OpenAI
+        messages = [
+            {
+                "role": "system",
+                "content": f"You are a helpful assistant for Easy2Swim. Use the following documentation to answer questions:\n\n{documentation}"
+            }
+        ] + history + [
+            {
+                "role": "user",
+                "content": user_message
+            }
+        ]
 
-    return jsonify({"reply": response.choices[0].message.content})
+        # Ensure OpenAI API key is set correctly
+        openai.api_key = os.getenv("OPENAI_API_KEY")
+        
+        # Make request to OpenAI API
+        response = openai.ChatCompletion.create(
+            model="gpt-3.5-turbo",
+            messages=messages
+        )
+
+        app.logger.info(f"OpenAI response: {response}")
+        
+        # Return OpenAI response to the user
+        return jsonify({"reply": response.choices[0].message["content"]})
+
+    except Exception as e:
+        app.logger.error(f"Error: {e}")
+        return jsonify({"error": "Something went wrong."}), 500
 
 @app.route("/schedule", methods=["GET"])
 def get_schedule():
