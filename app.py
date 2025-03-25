@@ -46,11 +46,11 @@ def ask():
 
 @app.route("/schedule", methods=["GET"])
 def get_schedule():
-    urls = {
-        "2-4": "https://easy2swim.co.za/age-groups-classes/age-group-2-4-years/2-4-years-age-group-class-registration/",
-        "5-7": "https://easy2swim.co.za/age-groups-classes/age-group-5-7-years/5-7-years-age-group-class-registration/",
-        "8plus": "https://easy2swim.co.za/age-groups-classes/age-group-8-years/8-years-age-group-class-registration/"
-    }
+    urls = [
+        "https://easy2swim.co.za/age-groups-classes/age-group-2-4-years/2-4-years-age-group-class-registration/",
+        "https://easy2swim.co.za/age-groups-classes/age-group-5-7-years/5-7-years-age-group-class-registration/",
+        "https://easy2swim.co.za/age-groups-classes/age-group-8-years/8-years-age-group-class-registration/"
+    ]
 
     def to_24h_format(time_str):
         dt = datetime.strptime(time_str.strip(), "%I:%M %p")
@@ -65,11 +65,10 @@ def get_schedule():
 
     results = {}
 
-    for label, url in urls.items():
+    for url in urls:
         try:
             page = requests.get(url)
             soup = BeautifulSoup(page.text, "html.parser")
-            schedule = []
 
             term_info = soup.find(string=re.compile(r"Term Dates|Start Date"))
             date_text = term_info.find_parent().get_text() if term_info else ""
@@ -98,6 +97,7 @@ def get_schedule():
 
                 day_time = cols[0].get_text(strip=True)
                 size_text = cols[2].get_text(strip=True)
+                class_name = cols[1].get_text(strip=True)  # Assume this is the class name column
 
                 if "/" not in size_text:
                     continue
@@ -118,11 +118,12 @@ def get_schedule():
                 if register_btn:
                     link = register_btn["href"]
                     label = f"[{day_abbr} {time_24}]({link}) • {weeks_left} Classes • R{pro_rata_price}"
-                    schedule.append({"label": label})
+                    if class_name not in results:
+                        results[class_name] = []
+                    results[class_name].append({"label": label})
 
-            results[label] = schedule
         except Exception as e:
-            results[label] = {"error": str(e)}
+            results["error"] = str(e)
 
     return jsonify(results)
 
