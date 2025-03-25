@@ -9,7 +9,7 @@ import re
 import logging
 
 app = Flask(__name__)
-CORS(app)
+CORS(app, origins=["https://easy2swim.co.za"])  # Restrict CORS to your frontend
 
 # Set up logging
 logging.basicConfig(level=logging.INFO)
@@ -31,6 +31,7 @@ def ask():
         history = data.get("history", [])
 
         if not user_message or not documentation:
+            app.logger.error(f"Missing message or documentation: {data}")
             return jsonify({"error": "Missing message or documentation"}), 400
 
         app.logger.info(f"Received user message: {user_message[:50]}...")  # Only log the first 50 characters
@@ -61,11 +62,14 @@ def ask():
         app.logger.info(f"OpenAI response: {response}")
         
         # Return OpenAI response to the user
-        return jsonify({"reply": response.choices[0].message["content"]})
+        return jsonify({"reply": response['choices'][0]['message']['content']})
 
+    except openai.error.OpenAIError as e:
+        app.logger.error(f"OpenAI API error: {e}")
+        return jsonify({"error": f"OpenAI API error: {e}"}), 500
     except Exception as e:
-        app.logger.error(f"Error: {e}")
-        return jsonify({"error": "Something went wrong."}), 500
+        app.logger.error(f"Unexpected error: {e}")
+        return jsonify({"error": f"Unexpected error: {e}"}), 500
 
 @app.route("/schedule", methods=["GET"])
 def get_schedule():
@@ -117,38 +121,3 @@ def get_schedule():
                 cols = row.find_all("td")
                 if len(cols) < 5:
                     continue
-
-                day_time = cols[0].get_text(strip=True)
-                size_text = cols[2].get_text(strip=True)
-                class_name = cols[1].get_text(strip=True)  # Assume this is the class name column
-
-                if "/" not in size_text:
-                    continue
-                current, total = map(int, size_text.split("/"))
-                if current >= total:
-                    continue
-
-                if "–" in day_time:
-                    day_part, time_part = day_time.split(" ", 1)
-                    start_time = time_part.split("–")[0].strip()
-                else:
-                    day_part, start_time = day_time.split(" ", 1)
-
-                time_24 = to_24h_format(start_time)
-                day_abbr = get_abbr_day(day_part)
-
-                register_btn = cols[-1].find("a", href=True)
-                if register_btn:
-                    link = register_btn["href"]
-                    label = f"[{day_abbr} {time_24}]({link}) • {weeks_left} Classes • R{pro_rata_price}"
-                    if class_name not in results:
-                        results[class_name] = []
-                    results[class_name].append({"label": label})
-
-        except Exception as e:
-            results["error"] = str(e)
-
-    return jsonify(results)
-
-if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=3000)
