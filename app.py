@@ -146,6 +146,9 @@ Response Style for AI
 
 """
 
+# Set your OpenAI API key (from environment variable)
+openai.api_key = os.getenv("OPENAI_API_KEY")  # This will pull the API key from the environment variable
+
 # This route is for receiving questions from the website and sending answers back.
 @app.route("/ask", methods=["POST"])
 def ask():
@@ -168,9 +171,6 @@ def ask():
                 "content": user_message
             }
         ]
-
-        # Make sure your OpenAI API key is set up correctly
-        openai.api_key = os.getenv("OPENAI_API_KEY")
 
         # Send the question (along with the manual) to OpenAI for a response
         response = openai.ChatCompletion.create(
