@@ -26,9 +26,8 @@ def shutdown_signal_handler(signal, frame):
 
 signal.signal(signal.SIGTERM, shutdown_signal_handler)
 
-@app.before_first_request
-def startup_check():
-    app.logger.info("Flask app started successfully and is ready to accept requests.")
+# Log startup when the app is initialized
+app.logger.info("Flask app initialized and ready to accept requests.")
 
 @app.route("/")
 def home():
