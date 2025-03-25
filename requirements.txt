@@ -4,3 +4,4 @@ flask-cors
 gunicorn
 requests
 beautifulsoup4
+openai==0.27.4  # You can use the latest version here
