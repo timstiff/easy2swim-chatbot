@@ -120,4 +120,40 @@ def get_schedule():
             for row in rows:
                 cols = row.find_all("td")
                 if len(cols) < 5:
-                    continue
+                    continue  # Correct use inside a loop
+
+                day_time = cols[0].get_text(strip=True)
+                size_text = cols[2].get_text(strip=True)
+                class_name = cols[1].get_text(strip=True)  # Assume this is the class name column
+
+                if "/" not in size_text:
+                    continue  # Correct use inside a loop
+                current, total = map(int, size_text.split("/"))
+                if current >= total:
+                    continue  # Correct use inside a loop
+
+                if "–" in day_time:
+                    day_part, time_part = day_time.split(" ", 1)
+                    start_time = time_part.split("–")[0].strip()
+                else:
+                    day_part, start_time = day_time.split(" ", 1)
+
+                time_24 = to_24h_format(start_time)
+                day_abbr = get_abbr_day(day_part)
+
+                register_btn = cols[-1].find("a", href=True)
+                if register_btn:
+                    link = register_btn["href"]
+                    label = f"[{day_abbr} {time_24}]({link}) • {weeks_left} Classes • R{pro_rata_price}"
+                    if class_name not in results:
+                        results[class_name] = []
+                    results[class_name].append({"label": label})
+
+        except Exception as e:
+            app.logger.error(f"Error scraping schedule from {url}: {str(e)}")
+            results["error"] = f"Error scraping schedule: {e}"
+
+    return jsonify(results)
+
+if __name__ == "__main__":
+    app.run(host="0.0.0.0", port=3000)
