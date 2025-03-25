@@ -40,7 +40,7 @@ def handle_options():
     app.logger.info("Handling OPTIONS request for /api/ask")
     return "", 200  # Respond with 200 OK to preflight requests
 
-@app.route("/ask", methods=["POST"])
+@app.route("/api/ask", methods=["POST"])
 def ask():
     try:
         data = request.get_json()
