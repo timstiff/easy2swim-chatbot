@@ -1,76 +1,39 @@
-from flask import Flask, request, jsonify
 import openai
-import os
-from flask_cors import CORS
-import logging
+from flask import Flask, request, jsonify
 
+# Initialize Flask app
 app = Flask(__name__)
-CORS(app, resources={r"/api/*": {"origins": "*"}})  # Allow all origins for /api routes
 
-# Set up logging for better debugging
-logging.basicConfig(level=logging.INFO)
+# Set OpenAI API Key
+openai.api_key = 'YOUR_OPENAI_API_KEY'  # Replace with your actual API key
 
-@app.route("/")
-def home():
-    app.logger.info("Home route called.")
-    return "Easy2Swim Chatbot API is running!"
-
-@app.route("/api/ask", methods=["POST"])
+# Endpoint for handling the chat
+@app.route('/ask', methods=['POST'])
 def ask():
     try:
-        # Get JSON data from the request
         data = request.get_json()
 
-        # Log received data for debugging purposes
-        app.logger.debug(f"Received data: {data}")
+        user_message = data.get('message')
+        if not user_message:
+            return jsonify({"error": "No message provided"}), 400
 
-        # Check if data contains the required fields (message and documentation)
-        if not data or 'message' not in data or 'documentation' not in data:
-            app.logger.error("Missing message or documentation in request data.")
-            return jsonify({"error": "Missing message or documentation"}), 400
-
-        # Extract message, documentation, and history from the request
-        user_message = data.get("message")
-        documentation = data.get("documentation")
-        history = data.get("history", [])
-
-        # Log the received user message and documentation for debugging
-        app.logger.info(f"Received user message: {user_message[:50]}...")  # Only log the first 50 characters
-        app.logger.info(f"Received documentation: {documentation[:50]}...")  # Only log the first 50 chars
-
-        # Prepare the messages for OpenAI API
-        messages = [
-            {
-                "role": "system",
-                "content": f"You are the Easy2Swim Assistant. Use the following manual to answer questions:\n\n{documentation}"
-            }
-        ] + history + [
-            {
-                "role": "user",
-                "content": user_message
-            }
-        ]
-
-        # Ensure OpenAI API key is set correctly
-        openai.api_key = os.getenv("OPENAI_API_KEY")
-
-        # Make request to OpenAI API
+        # Call OpenAI API to get the chatbot's response
         response = openai.ChatCompletion.create(
-            model="gpt-3.5-turbo",
-            messages=messages
+            model="gpt-3.5-turbo",  # You can also use "gpt-4" if available
+            messages=[{
+                "role": "system",
+                "content": "You are a helpful assistant for Easy2Swim Swimming Academy."
+            },
+            {"role": "user", "content": user_message}],
+            max_tokens=150,  # Limit tokens to prevent overuse
+            temperature=0.7  # Controls creativity, adjust as needed
         )
 
-        # Log OpenAI response for debugging
-        app.logger.info(f"OpenAI response: {response}")
-
-        # Return OpenAI response to the user
-        return jsonify({"reply": response.choices[0].message["content"]})
+        bot_reply = response['choices'][0]['message']['content']
+        return jsonify({"reply": bot_reply})
 
     except Exception as e:
-        # Log the error if something goes wrong
-        app.logger.error(f"Error: {e}")
-        return jsonify({"error": "Something went wrong."}), 500
+        return jsonify({"error": str(e)}), 500
 
-# Run the Flask app
-if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=3000)
+if __name__ == '__main__':
+    app.run(debug=True, host='0.0.0.0', port=3000)
