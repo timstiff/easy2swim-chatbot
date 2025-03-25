@@ -7,21 +7,40 @@ from bs4 import BeautifulSoup
 from datetime import datetime, timedelta
 import re
 import logging
+import signal
+import sys
 
+# Create the Flask app
 app = Flask(__name__)
-CORS(app, origins=["https://easy2swim.co.za"])  # Restrict CORS to your frontend
 
-# Set up logging
-logging.basicConfig(level=logging.INFO)
+# Enable CORS for frontend at https://easy2swim.co.za
+CORS(app, origins=["https://easy2swim.co.za"])
+
+# Set up logging to capture detailed information
+logging.basicConfig(level=logging.DEBUG)  # Set to DEBUG to capture detailed logs
+
+# Signal handling to log shutdown reasons
+def shutdown_signal_handler(signal, frame):
+    app.logger.info("Received shutdown signal. Flask is shutting down...")
+    sys.exit(0)
+
+signal.signal(signal.SIGTERM, shutdown_signal_handler)
+
+@app.before_first_request
+def startup_check():
+    app.logger.info("Flask app started successfully and is ready to accept requests.")
 
 @app.route("/")
 def home():
+    app.logger.info("Home route called.")
     return "Easy2Swim Chatbot API is running!"
 
 @app.route("/ask", methods=["POST"])
 def ask():
     try:
         data = request.get_json()
+        app.logger.debug(f"Received data: {data}")  # Log the entire request data
+        
         if not data:
             app.logger.error("No JSON data received.")
             return jsonify({"error": "No data received"}), 400
@@ -34,10 +53,10 @@ def ask():
             app.logger.error(f"Missing message or documentation: {data}")
             return jsonify({"error": "Missing message or documentation"}), 400
 
-        app.logger.info(f"Received user message: {user_message[:50]}...")  # Only log the first 50 characters
-        app.logger.info(f"Received documentation: {documentation[:50]}...")  # Only log first 50 chars
+        app.logger.info(f"User message: {user_message[:50]}...")
+        app.logger.info(f"Documentation: {documentation[:50]}...")
 
-        # Preparing messages for OpenAI
+        # Prepare messages for OpenAI
         messages = [
             {
                 "role": "system",
@@ -54,12 +73,13 @@ def ask():
         openai.api_key = os.getenv("OPENAI_API_KEY")
         
         # Make request to OpenAI API
+        app.logger.debug(f"Sending request to OpenAI API with {len(messages)} messages")
         response = openai.ChatCompletion.create(
             model="gpt-3.5-turbo",
             messages=messages
         )
 
-        app.logger.info(f"OpenAI response: {response}")
+        app.logger.debug(f"OpenAI response: {response}")
         
         # Return OpenAI response to the user
         return jsonify({"reply": response['choices'][0]['message']['content']})
