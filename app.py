@@ -10,7 +10,7 @@ CORS(app)
 # Set up logging
 logging.basicConfig(level=logging.INFO)
 
-# Manual content (load from a file or directly as a string)
+# Manual content (this should be the entire manual you want to provide)
 manual = """
 Easy2Swim Assistant – AI Agent Overview
 Role & Language Support
@@ -56,6 +56,9 @@ Class Booking Process:
 """
 # Add more details to your manual if necessary...
 
+# Store session history in a dictionary to remember past messages
+session_history = {}
+
 @app.route("/")
 def home():
     return "Easy2Swim Chatbot API is running!"
@@ -69,27 +72,26 @@ def ask():
             app.logger.error("No JSON data received.")
             return jsonify({"error": "No data received"}), 400
         
+        # Get the user message and session ID (to track conversation history)
         user_message = data.get("message")
-        history = data.get("history", [])
-
-        # Check if both message and documentation are provided
-        if not user_message:
-            return jsonify({"error": "Missing message"}), 400
+        session_id = data.get("session_id", "default")  # Use default if session_id is not provided
+        
+        # Initialize the session history if it doesn't exist
+        if session_id not in session_history:
+            session_history[session_id] = []
+        
+        # Add user message to the session history
+        session_history[session_id].append({"role": "user", "content": user_message})
 
         app.logger.info(f"Received user message: {user_message[:50]}...")  # Only log the first 50 characters
 
-        # Prepare the messages for OpenAI API with the manual
+        # Prepare the messages for OpenAI API with the manual and the conversation history
         messages = [
             {
                 "role": "system",
                 "content": f"You are a helpful assistant for Easy2Swim. Use the following documentation to answer questions:\n\n{manual}"
             }
-        ] + history + [
-            {
-                "role": "user",
-                "content": user_message
-            }
-        ]
+        ] + session_history[session_id]
 
         # Set OpenAI API key
         openai.api_key = os.getenv("OPENAI_API_KEY")
@@ -103,17 +105,37 @@ def ask():
         # Log the response from OpenAI API
         app.logger.info(f"OpenAI response: {response}")
         
-        # Modify response attribution to "E2S"
+        # Extract and format the response
         bot_reply = response.choices[0].message["content"]
         formatted_reply = f"E2S: {bot_reply}"
 
-        # Return the modified response to the user
+        # Add bot's response to the session history
+        session_history[session_id].append({"role": "assistant", "content": bot_reply})
+
+        # Return the response with E2S prefix to the user
         return jsonify({"reply": formatted_reply})
 
     except Exception as e:
         # Log any exceptions
         app.logger.error(f"Error: {e}")
         return jsonify({"error": "Something went wrong."}), 500
+
+@app.route("/clear_history", methods=["POST"])
+def clear_history():
+    try:
+        # Get the session ID to clear its history
+        data = request.get_json()
+        session_id = data.get("session_id", "default")
+        
+        if session_id in session_history:
+            del session_history[session_id]  # Clear the history for the session
+            return jsonify({"message": f"History for session {session_id} cleared."}), 200
+        else:
+            return jsonify({"error": "Session not found."}), 404
+
+    except Exception as e:
+        app.logger.error(f"Error clearing history: {e}")
+        return jsonify({"error": "Failed to clear history."}), 500
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=3000)
