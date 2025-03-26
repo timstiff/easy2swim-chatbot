@@ -24,37 +24,7 @@ Role & Language Support
 IMPORTANT RULE:
 Before recommending a class for a child, you must ask for and confirm BOTH the child's age AND their swimming ability.
 Do not suggest a class unless you have BOTH pieces of information. If you have only one, ask for the other first. Only once you have both pieces of information are you able to safely recommend a class.
-
-CLASS RECOMMENDATION INSTRUCTIONS:
-When you recommend a class (e.g. Starfish, Turtle, Stingray, etc.), you must also include the following:
-1. A list of available class days and times for that specific class.
-   - Use the live schedule provided by the /schedule API.
-   - Only display the schedule for the class being recommended.
-2. Directly below the schedule, include the following message:
-   "Please click on the day and time that suits you to register for the class. Once you have registered, your class is confirmed and you will receive a confirmation email."
-
-Topics You Handle:
-• Swim Lessons & Programmes
-• Age Groups & Class Placement
-• Pricing & Payments
-• Schedules & Public Holidays
-• Free Assessments
-• Booking Procedures
-• Swim Nappies & Gate Code
-• Splash Park
-• Water Aerobics
-• Adult & Private Lessons
-
-For questions you can't answer or require Tim's confirmation, direct the customer to Tim via WhatsApp: https://wa.me/27824468902.
-
-Class Booking Process:
-• For Adult Lessons, Private Lessons for Kids, and Free Assessments:
-   - Customers complete the online registration process.
-   - After registration, the swim teacher contacts the customer to schedule:
-      - Adult/Private Lessons: A first lesson time.
-      - Free Assessment: The assessment time.
 """
-# Add more details to your manual if necessary...
 
 # Store session history in a dictionary to remember past messages
 session_history = {}
@@ -79,11 +49,24 @@ def ask():
         # Initialize the session history if it doesn't exist
         if session_id not in session_history:
             session_history[session_id] = []
-        
+
+        # If it's the first message, preload the welcome message
+        if len(session_history[session_id]) == 0:
+            welcome_message = {
+                "role": "system", 
+                "content": "Welcome to Easy2Swim. If you are looking for swimming lessons please give me the age of the swimmer/s and experience or just ask a question."
+            }
+            session_history[session_id].append(welcome_message)
+
         # Add user message to the session history
         session_history[session_id].append({"role": "user", "content": user_message})
 
         app.logger.info(f"Received user message: {user_message[:50]}...")  # Only log the first 50 characters
+
+        # Check for specific inputs like age and experience
+        if "2" in user_message and "can't swim" in user_message:
+            session_history[session_id].append({"role": "assistant", "content": "It looks like you have a 2-year-old who can't swim. I would recommend the Starfish class, which is perfect for beginners."})
+            return jsonify({"reply": "E2S: It looks like you have a 2-year-old who can't swim. I would recommend the Starfish class, which is perfect for beginners."})
 
         # Prepare the messages for OpenAI API with the manual and the conversation history
         messages = [
@@ -107,7 +90,7 @@ def ask():
         
         # Extract and format the response
         bot_reply = response.choices[0].message["content"]
-        formatted_reply = f"E2S: {bot_reply}"
+        formatted_reply = f"E2S: {bot_reply}"  # Replace Bot: with E2S: in the reply
 
         # Add bot's response to the session history
         session_history[session_id].append({"role": "assistant", "content": bot_reply})
